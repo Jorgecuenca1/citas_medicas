@@ -1,0 +1,98 @@
+# Django Framework
+Django
+
+# Database
+psycopg2-binary  # PostgreSQL support (optional)
+mysqlclient  # MySQL support (optional)
+
+# Development Tools
+django-debug-toolbar
+django-extensions
+ipython
+
+# Testing
+pytest
+pytest-django
+pytest-cov
+factory-boy
+faker
+
+# Code Quality
+black
+flake8
+isort
+pylint
+pre-commit
+
+# Security
+django-cors-headers
+python-decouple
+django-environ
+
+# API (if needed in future)
+djangorestframework
+django-filter
+
+# Forms and Admin
+django-crispy-forms
+crispy-bootstrap5
+
+# Media and Static Files
+Pillow
+whitenoise
+
+# Background Tasks
+celery
+redis
+django-celery-beat
+
+# Email
+django-ses # AWS SES support
+
+# Utilities
+python-dateutil
+pytz
+django-timezone-field
+
+# Production Server
+gunicorn
+daphne  # For WebSocket support
+
+# Monitoring and Logging
+sentry-sdk
+django-prometheus
+
+# Documentation
+django-rest-swagger
+drf-yasg
+
+# Internationalization
+django-modeltranslation
+
+# Search
+django-haystack
+elasticsearch
+
+# Caching
+django-redis
+
+# Pagination
+django-pure-pagination
+
+# Import/Export
+django-import-export
+openpyxl
+xlwt
+
+# PDF Generation
+reportlab
+xhtml2pdf
+WeasyPrint
+
+# Charts and Graphics
+django-chartjs
+plotly
+
+# Authentication
+django-allauth
+django-two-factor-auth
