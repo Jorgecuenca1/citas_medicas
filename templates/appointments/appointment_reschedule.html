@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}Reprogramar Cita{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Reprogramar Cita #{{ appointment.id }}</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-warning text-white">
+                <h5 class="mb-0">Cita Actual</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Fecha:</strong> {{ appointment.slot.start_dt|date:"d/m/Y" }}</p>
+                <p><strong>Hora:</strong> {{ appointment.slot.start_dt|date:"H:i" }}</p>
+                <p><strong>Médico:</strong> Dr. {{ appointment.slot.doctor.user.get_full_name }}</p>
+                <p><strong>Paciente:</strong> {{ appointment.patient.user.get_full_name }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Seleccionar Nueva Fecha</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Horarios disponibles del mismo médico:</label>
+                        {% for slot in available_slots %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="new_slot_id" id="slot{{ slot.id }}" value="{{ slot.id }}">
+                            <label class="form-check-label" for="slot{{ slot.id }}">
+                                {{ slot.start_dt|date:"d/m/Y H:i" }} - {{ slot.end_dt|date:"H:i" }}
+                            </label>
+                        </div>
+                        {% empty %}
+                        <p class="text-muted">No hay horarios disponibles próximamente</p>
+                        {% endfor %}
+                    </div>
+                    
+                    {% if available_slots %}
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-circle"></i> Confirmar Reprogramación
+                    </button>
+                    {% endif %}
+                    <a href="{% url 'appointment_detail' appointment.id %}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Cancelar
+                    </a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,238 @@
+{% extends 'base.html' %}
+{% block title %}Mis Citas{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Mis Citas</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'calendar' %}" class="btn btn-sm btn-outline-secondary me-2">
+            <i class="bi bi-calendar3"></i> Ver Calendario
+        </a>
+        <a href="{% url 'appointment_search' %}" class="btn btn-sm btn-primary">
+            <i class="bi bi-plus-circle"></i> Nueva Cita
+        </a>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="btn-group" role="group">
+            <a href="?status=upcoming" 
+               class="btn {% if status_filter == 'upcoming' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                <i class="bi bi-calendar-check"></i> Próximas
+            </a>
+            <a href="?status=past" 
+               class="btn {% if status_filter == 'past' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                <i class="bi bi-clock-history"></i> Pasadas
+            </a>
+            <a href="?status=all" 
+               class="btn {% if status_filter == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                <i class="bi bi-list-ul"></i> Todas
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Lista de citas -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            {% if status_filter == 'upcoming' %}
+                Citas Próximas
+            {% elif status_filter == 'past' %}
+                Historial de Citas
+            {% else %}
+                Todas las Citas
+            {% endif %}
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if appointments %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Hora</th>
+                        <th>Médico</th>
+                        <th>Especialidad</th>
+                        <th>Sede</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for appointment in appointments %}
+                    <tr>
+                        <td>
+                            <strong>{{ appointment.slot.start_dt|date:"d/m/Y" }}</strong>
+                            <br>
+                            <small class="text-muted">{{ appointment.slot.start_dt|date:"l" }}</small>
+                        </td>
+                        <td>{{ appointment.slot.start_dt|date:"H:i" }}</td>
+                        <td>Dr. {{ appointment.slot.doctor.user.get_full_name }}</td>
+                        <td>{{ appointment.slot.doctor.specialty.name }}</td>
+                        <td>
+                            {{ appointment.slot.location.name }}
+                            <br>
+                            <small class="text-muted">{{ appointment.slot.location.address|truncatewords:5 }}</small>
+                        </td>
+                        <td>
+                            {% if appointment.status == 'CONFIRMADO' %}
+                                <span class="badge bg-success">Confirmado</span>
+                            {% elif appointment.status == 'RESERVADO' %}
+                                <span class="badge bg-warning text-dark">Reservado</span>
+                            {% elif appointment.status == 'ATENDIDO' %}
+                                <span class="badge bg-primary">Atendido</span>
+                            {% elif appointment.status == 'NO_SHOW' %}
+                                <span class="badge bg-danger">No asistió</span>
+                            {% elif appointment.status == 'CANCELADO_PAC' %}
+                                <span class="badge bg-secondary">Cancelado por paciente</span>
+                            {% elif appointment.status == 'CANCELADO_CLIN' %}
+                                <span class="badge bg-secondary">Cancelado por clínica</span>
+                            {% elif appointment.status == 'REPROGRAMADO' %}
+                                <span class="badge bg-info">Reprogramado</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ appointment.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{% url 'appointment_detail' appointment.id %}" 
+                                   class="btn btn-sm btn-outline-primary" title="Ver detalles">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                
+                                {% if appointment.status in 'RESERVADO,CONFIRMADO' and appointment.slot.start_dt > now %}
+                                <a href="{% url 'appointment_reschedule' appointment.id %}" 
+                                   class="btn btn-sm btn-outline-warning" title="Reprogramar">
+                                    <i class="bi bi-calendar-x"></i>
+                                </a>
+                                
+                                <button type="button" class="btn btn-sm btn-outline-danger" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#cancelModal{{ appointment.id }}"
+                                        title="Cancelar">
+                                    <i class="bi bi-x-circle"></i>
+                                </button>
+                                {% endif %}
+                                
+                                {% if appointment.status == 'RESERVADO' and appointment.slot.start_dt > now %}
+                                <form method="post" action="{% url 'appointment_confirm' appointment.id %}" style="display: inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-success" title="Confirmar">
+                                        <i class="bi bi-check-circle"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    
+                    <!-- Modal Cancelar -->
+                    {% if appointment.status in 'RESERVADO,CONFIRMADO' and appointment.slot.start_dt > now %}
+                    <div class="modal fade" id="cancelModal{{ appointment.id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Cancelar Cita</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="post" action="{% url 'appointment_cancel' appointment.id %}">
+                                    {% csrf_token %}
+                                    <div class="modal-body">
+                                        <p>¿Está seguro que desea cancelar esta cita?</p>
+                                        <p class="text-muted">
+                                            <strong>Fecha:</strong> {{ appointment.slot.start_dt|date:"d/m/Y H:i" }}<br>
+                                            <strong>Médico:</strong> Dr. {{ appointment.slot.doctor.user.get_full_name }}
+                                        </p>
+                                        <div class="mb-3">
+                                            <label for="cancel_reason{{ appointment.id }}" class="form-label">Motivo de cancelación:</label>
+                                            <textarea class="form-control" name="cancel_reason" id="cancel_reason{{ appointment.id }}" rows="3" required></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                        <button type="submit" class="btn btn-danger">Cancelar Cita</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            {% if status_filter == 'upcoming' %}
+                                <p class="mb-2">No tiene citas próximas programadas.</p>
+                                <a href="{% url 'appointment_search' %}" class="btn btn-primary">
+                                    <i class="bi bi-calendar-plus"></i> Agendar una cita
+                                </a>
+                            {% elif status_filter == 'past' %}
+                                <p>No tiene historial de citas.</p>
+                            {% else %}
+                                <p>No tiene citas registradas.</p>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Paginación -->
+        {% if appointments.has_other_pages %}
+        <nav aria-label="Paginación de citas">
+            <ul class="pagination justify-content-center">
+                {% if appointments.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?status={{ status_filter }}&page={{ appointments.previous_page_number }}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for num in appointments.paginator.page_range %}
+                    {% if appointments.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > appointments.number|add:'-3' and num < appointments.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?status={{ status_filter }}&page={{ num }}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if appointments.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?status={{ status_filter }}&page={{ appointments.next_page_number }}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+        {% else %}
+        <div class="text-center py-5">
+            {% if status_filter == 'upcoming' %}
+                <i class="bi bi-calendar-x display-1 text-muted"></i>
+                <p class="mt-3 mb-2">No tiene citas próximas programadas.</p>
+                <a href="{% url 'appointment_search' %}" class="btn btn-primary">
+                    <i class="bi bi-calendar-plus"></i> Agendar una cita
+                </a>
+            {% elif status_filter == 'past' %}
+                <i class="bi bi-clock-history display-1 text-muted"></i>
+                <p class="mt-3">No tiene historial de citas.</p>
+            {% else %}
+                <i class="bi bi-calendar display-1 text-muted"></i>
+                <p class="mt-3">No tiene citas registradas.</p>
+                <a href="{% url 'appointment_search' %}" class="btn btn-primary">
+                    <i class="bi bi-calendar-plus"></i> Agendar su primera cita
+                </a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

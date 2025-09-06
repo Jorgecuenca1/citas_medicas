@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard - Administrador{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Dashboard Administrativo</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button type="button" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-calendar"></i> {{ today|date:"d/m/Y" }}
+        </button>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="card stat-card primary">
+            <div class="card-body">
+                <h5 class="card-title">Pacientes</h5>
+                <h2 class="text-primary">{{ total_patients }}</h2>
+                <p class="text-muted mb-0">Total registrados</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card success">
+            <div class="card-body">
+                <h5 class="card-title">Médicos</h5>
+                <h2 class="text-success">{{ total_doctors }}</h2>
+                <p class="text-muted mb-0">Activos</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card warning">
+            <div class="card-body">
+                <h5 class="card-title">Citas Hoy</h5>
+                <h2 class="text-warning">{{ today_appointments }}</h2>
+                <p class="text-muted mb-0">Programadas</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card info">
+            <div class="card-body">
+                <h5 class="card-title">Pendientes</h5>
+                <h2 class="text-info">{{ pending_appointments }}</h2>
+                <p class="text-muted mb-0">Por confirmar</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Citas Recientes</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Fecha/Hora</th>
+                                <th>Paciente</th>
+                                <th>Médico</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for appointment in recent_appointments %}
+                            <tr>
+                                <td>{{ appointment.slot.start_dt|date:"d/m/Y H:i" }}</td>
+                                <td>{{ appointment.patient.user.get_full_name }}</td>
+                                <td>Dr. {{ appointment.slot.doctor.user.get_full_name }}</td>
+                                <td>
+                                    {% if appointment.status == 'RESERVADO' %}
+                                        <span class="badge bg-warning">Reservado</span>
+                                    {% elif appointment.status == 'CONFIRMADO' %}
+                                        <span class="badge bg-success">Confirmado</span>
+                                    {% elif appointment.status == 'ATENDIDO' %}
+                                        <span class="badge bg-primary">Atendido</span>
+                                    {% elif appointment.status == 'NO_SHOW' %}
+                                        <span class="badge bg-danger">No asistió</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ appointment.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'appointment_detail' appointment.id %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i> Ver
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center">No hay citas recientes</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Accesos Rápidos</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <a href="{% url 'appointment_search' %}" class="list-group-item list-group-item-action">
+                        <i class="bi bi-search"></i> Buscar horarios disponibles
+                    </a>
+                    <a href="{% url 'patient_create' %}" class="list-group-item list-group-item-action">
+                        <i class="bi bi-person-plus"></i> Registrar nuevo paciente
+                    </a>
+                    <a href="{% url 'calendar' %}" class="list-group-item list-group-item-action">
+                        <i class="bi bi-calendar-week"></i> Ver calendario de citas
+                    </a>
+                    <a href="{% url 'reports_dashboard' %}" class="list-group-item list-group-item-action">
+                        <i class="bi bi-graph-up"></i> Ver reportes
+                    </a>
+                    <a href="/admin/" class="list-group-item list-group-item-action">
+                        <i class="bi bi-gear"></i> Configuración del sistema
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Estadísticas Rápidas</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="statsChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const ctx = document.getElementById('statsChart').getContext('2d');
+const myChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Confirmadas', 'Pendientes', 'Atendidas', 'Canceladas'],
+        datasets: [{
+            data: [30, 15, 45, 10],
+            backgroundColor: [
+                'rgba(40, 167, 69, 0.8)',
+                'rgba(255, 193, 7, 0.8)',
+                'rgba(13, 110, 253, 0.8)',
+                'rgba(220, 53, 69, 0.8)'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false
+    }
+});
+</script>
+{% endblock %}

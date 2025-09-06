@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block title %}Lista de Pacientes{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Pacientes</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'patient_create' %}" class="btn btn-primary">
+            <i class="bi bi-person-plus"></i> Nuevo Paciente
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="get" class="mb-3">
+            <div class="input-group">
+                <input type="text" name="search" class="form-control" placeholder="Buscar por nombre, documento o email..." value="{{ search }}">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i> Buscar
+                </button>
+                {% if search %}
+                <a href="{% url 'patient_list' %}" class="btn btn-secondary">
+                    <i class="bi bi-x"></i> Limpiar
+                </a>
+                {% endif %}
+            </div>
+        </form>
+
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Documento</th>
+                        <th>Nombre</th>
+                        <th>Teléfono</th>
+                        <th>Email</th>
+                        <th>Edad</th>
+                        <th>Aseguradora</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for patient in patients %}
+                    <tr>
+                        <td>{{ patient.user.document_id }}</td>
+                        <td>{{ patient.user.get_full_name }}</td>
+                        <td>{{ patient.user.phone }}</td>
+                        <td>{{ patient.user.email }}</td>
+                        <td>
+                            {% load filters %}
+                            {{ patient.birthdate|age }} años
+                        </td>
+                        <td>{{ patient.insurance|default:"-" }}</td>
+                        <td>
+                            <a href="{% url 'patient_detail' patient.id %}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="{% url 'patient_update' patient.id %}" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center">No se encontraron pacientes</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

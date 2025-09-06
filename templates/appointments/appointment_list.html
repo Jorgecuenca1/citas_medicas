@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% block title %}Lista de Citas{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Gestión de Citas</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'appointment_search' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Nueva Cita
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="get" class="row g-3 mb-3">
+            <div class="col-md-2">
+                <select name="status" class="form-select">
+                    <option value="">Todos los estados</option>
+                    {% for status_code, status_name in statuses %}
+                    <option value="{{ status_code }}" {% if request.GET.status == status_code %}selected{% endif %}>
+                        {{ status_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="doctor" class="form-select">
+                    <option value="">Todos los médicos</option>
+                    {% for doctor in doctors %}
+                    <option value="{{ doctor.id }}" {% if request.GET.doctor == doctor.id|stringformat:"s" %}selected{% endif %}>
+                        Dr. {{ doctor.user.get_full_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <input type="date" name="date_from" class="form-control" value="{{ request.GET.date_from }}" placeholder="Desde">
+            </div>
+            <div class="col-md-2">
+                <input type="date" name="date_to" class="form-control" value="{{ request.GET.date_to }}" placeholder="Hasta">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> Filtrar
+                </button>
+            </div>
+            <div class="col-md-1">
+                <a href="{% url 'appointment_list' %}" class="btn btn-secondary w-100">
+                    <i class="bi bi-x"></i>
+                </a>
+            </div>
+        </form>
+
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Fecha/Hora</th>
+                        <th>Paciente</th>
+                        <th>Médico</th>
+                        <th>Sede</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for appointment in appointments %}
+                    <tr>
+                        <td>#{{ appointment.id }}</td>
+                        <td>{{ appointment.slot.start_dt|date:"d/m/Y H:i" }}</td>
+                        <td>{{ appointment.patient.user.get_full_name }}</td>
+                        <td>Dr. {{ appointment.slot.doctor.user.get_full_name }}</td>
+                        <td>{{ appointment.slot.location.name }}</td>
+                        <td>
+                            {% if appointment.status == 'RESERVADO' %}
+                                <span class="badge bg-warning">Reservado</span>
+                            {% elif appointment.status == 'CONFIRMADO' %}
+                                <span class="badge bg-success">Confirmado</span>
+                            {% elif appointment.status == 'ATENDIDO' %}
+                                <span class="badge bg-primary">Atendido</span>
+                            {% elif appointment.status == 'CANCELADO_PAC' or appointment.status == 'CANCELADO_CLIN' %}
+                                <span class="badge bg-danger">Cancelado</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ appointment.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'appointment_detail' appointment.id %}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center">No se encontraron citas</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if appointments.has_other_pages %}
+        <nav>
+            <ul class="pagination justify-content-center">
+                {% if appointments.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ appointments.previous_page_number }}">Anterior</a>
+                    </li>
+                {% endif %}
+                
+                {% for num in appointments.paginator.page_range %}
+                    {% if appointments.number == num %}
+                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% else %}
+                        <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if appointments.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ appointments.next_page_number }}">Siguiente</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

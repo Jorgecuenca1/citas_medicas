@@ -1,0 +1,245 @@
+{% extends 'base.html' %}
+{% block title %}Mi Agenda - Dr. {{ doctor.user.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Mi Agenda Semanal</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'calendar' %}" class="btn btn-sm btn-outline-secondary me-2">
+            <i class="bi bi-calendar3"></i> Vista Calendario
+        </a>
+    </div>
+</div>
+
+<!-- Navegación entre semanas -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <a href="?date={{ prev_week }}" class="btn btn-outline-primary">
+            <i class="bi bi-chevron-left"></i> Semana Anterior
+        </a>
+        <a href="{% url 'doctor_schedule' %}" class="btn btn-outline-secondary mx-2">
+            Semana Actual
+        </a>
+        <a href="?date={{ next_week }}" class="btn btn-outline-primary">
+            Semana Siguiente <i class="bi bi-chevron-right"></i>
+        </a>
+    </div>
+    <div>
+        <h4>Semana del {{ week_start|date:"d/m" }} al {{ week_end|date:"d/m/Y" }}</h4>
+    </div>
+</div>
+
+<!-- Filtro rápido de citas pendientes -->
+<div class="row mb-3">
+    <div class="col-md-12">
+        <div class="alert alert-info">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="bi bi-info-circle"></i> 
+                    Tienes <strong>{{ appointments|length }}</strong> citas esta semana
+                    {% with pending=appointments|dictsort:"slot.start_dt"|dictsortreversed:"status" %}
+                    {% for app in appointments %}
+                        {% if app.status in 'RESERVADO,CONFIRMADO' %}
+                            {% if forloop.first %} - <strong>Próxima:</strong> {{ app.slot.start_dt|date:"d/m H:i" }} con {{ app.patient.user.get_full_name }}{% endif %}
+                        {% endif %}
+                    {% endfor %}
+                    {% endwith %}
+                </div>
+                <div>
+                    <button class="btn btn-sm btn-primary" data-bs-toggle="collapse" data-bs-target="#pendingList">
+                        <i class="bi bi-list-check"></i> Ver Pendientes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lista de citas pendientes (colapsable) -->
+<div class="collapse" id="pendingList">
+    <div class="card mb-3">
+        <div class="card-header bg-warning">
+            <h5 class="mb-0">Citas Pendientes por Atender</h5>
+        </div>
+        <div class="card-body">
+            <div class="list-group">
+                {% for appointment in appointments %}
+                    {% if appointment.status in 'RESERVADO,CONFIRMADO' %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">
+                                {{ appointment.slot.start_dt|date:"l d/m - H:i" }}
+                            </h6>
+                            <span class="badge bg-{% if appointment.status == 'CONFIRMADO' %}success{% else %}warning{% endif %}">
+                                {{ appointment.get_status_display }}
+                            </span>
+                        </div>
+                        <p class="mb-1">
+                            <strong>Paciente:</strong> {{ appointment.patient.user.get_full_name }}<br>
+                            <strong>Teléfono:</strong> {{ appointment.patient.user.phone }}<br>
+                            {% if appointment.notes %}
+                            <strong>Motivo:</strong> {{ appointment.notes }}
+                            {% endif %}
+                        </p>
+                        <div>
+                            <a href="{% url 'appointment_detail' appointment.id %}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i> Ver detalles
+                            </a>
+                            {% if appointment.checked_in_at %}
+                            <span class="badge bg-info ms-2">
+                                <i class="bi bi-check-circle"></i> Check-in: {{ appointment.checked_in_at|date:"H:i" }}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                {% empty %}
+                <p class="text-muted text-center">No hay citas pendientes esta semana</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Vista de calendario semanal -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Vista Semanal</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th width="10%">Hora</th>
+                        <th width="12.8%" class="{% if week_start == today %}bg-warning bg-opacity-25{% endif %}">
+                            Lunes<br><small>{{ week_start|date:"d/m" }}</small>
+                        </th>
+                        <th width="12.8%" class="{% if week_start|add:1 == today %}bg-warning bg-opacity-25{% endif %}">
+                            Martes<br><small>{{ week_start|add:1|date:"d/m" }}</small>
+                        </th>
+                        <th width="12.8%" class="{% if week_start|add:2 == today %}bg-warning bg-opacity-25{% endif %}">
+                            Miércoles<br><small>{{ week_start|add:2|date:"d/m" }}</small>
+                        </th>
+                        <th width="12.8%" class="{% if week_start|add:3 == today %}bg-warning bg-opacity-25{% endif %}">
+                            Jueves<br><small>{{ week_start|add:3|date:"d/m" }}</small>
+                        </th>
+                        <th width="12.8%" class="{% if week_start|add:4 == today %}bg-warning bg-opacity-25{% endif %}">
+                            Viernes<br><small>{{ week_start|add:4|date:"d/m" }}</small>
+                        </th>
+                        <th width="12.8%" class="{% if week_start|add:5 == today %}bg-warning bg-opacity-25{% endif %}">
+                            Sábado<br><small>{{ week_start|add:5|date:"d/m" }}</small>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for hour in "8,9,10,11,12,13,14,15,16,17,18,19"|make_list %}
+                    <tr>
+                        <td class="text-center"><strong>{{ hour }}:00</strong></td>
+                        {% for day in "0,1,2,3,4,5"|make_list %}
+                        <td style="height: 60px; vertical-align: top;">
+                            {% for appointment in appointments %}
+                                {% if appointment.slot.start_dt.hour == hour|add:0 and appointment.slot.start_dt.weekday == day|add:0 %}
+                                <div class="alert {% if appointment.status == 'ATENDIDO' %}alert-success{% elif appointment.status == 'CONFIRMADO' %}alert-info{% else %}alert-warning{% endif %} p-1 mb-1" style="font-size: 0.8rem;">
+                                    <strong>{{ appointment.slot.start_dt|date:"H:i" }}</strong><br>
+                                    {{ appointment.patient.user.get_full_name|truncatewords:2 }}
+                                    {% if appointment.status == 'ATENDIDO' %}
+                                        <span class="badge bg-success">✓</span>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% for slot in available_slots %}
+                                {% if slot.start_dt.hour == hour|add:0 and slot.start_dt.weekday == day|add:0 %}
+                                <div class="text-muted" style="font-size: 0.75rem;">
+                                    <i class="bi bi-dot"></i> Disponible
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Detalle de todas las citas -->
+<div class="card mt-3">
+    <div class="card-header">
+        <h5 class="mb-0">Detalle de Citas</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Fecha/Hora</th>
+                        <th>Paciente</th>
+                        <th>Teléfono</th>
+                        <th>Estado</th>
+                        <th>Check-in</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for appointment in appointments %}
+                    <tr>
+                        <td>
+                            {{ appointment.slot.start_dt|date:"d/m H:i" }}
+                            {% if appointment.slot.start_dt.date == today %}
+                            <span class="badge bg-info">HOY</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ appointment.patient.user.get_full_name }}</td>
+                        <td>{{ appointment.patient.user.phone }}</td>
+                        <td>
+                            {% if appointment.status == 'CONFIRMADO' %}
+                                <span class="badge bg-success">Confirmado</span>
+                            {% elif appointment.status == 'ATENDIDO' %}
+                                <span class="badge bg-primary">Atendido</span>
+                            {% elif appointment.status == 'RESERVADO' %}
+                                <span class="badge bg-warning">Reservado</span>
+                            {% elif appointment.status == 'NO_SHOW' %}
+                                <span class="badge bg-danger">No asistió</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ appointment.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if appointment.checked_in_at %}
+                                <i class="bi bi-check-circle text-success"></i> {{ appointment.checked_in_at|date:"H:i" }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{% url 'appointment_detail' appointment.id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if appointment.status in 'RESERVADO,CONFIRMADO' %}
+                                <form method="post" action="{% url 'appointment_attend' appointment.id %}" style="display: inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-success" title="Marcar como atendido">
+                                        <i class="bi bi-check2-square"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center">No hay citas programadas esta semana</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

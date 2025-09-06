@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sistema de Citas Médicas{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --primary-color: #0d6efd;
+            --secondary-color: #6c757d;
+            --success-color: #198754;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #0dcaf0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f8f9fa;
+        }
+        
+        .sidebar {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+            padding: 48px 0 0;
+            box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+            background-color: #fff;
+        }
+        
+        .sidebar-sticky {
+            position: sticky;
+            top: 48px;
+            height: calc(100vh - 48px);
+            padding-top: .5rem;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+        
+        .sidebar .nav-link {
+            color: #333;
+            padding: .5rem 1rem;
+        }
+        
+        .sidebar .nav-link.active {
+            color: #007bff;
+            background-color: #e9ecef;
+        }
+        
+        .sidebar .nav-link:hover {
+            color: #007bff;
+        }
+        
+        .navbar-brand {
+            padding-top: .75rem;
+            padding-bottom: .75rem;
+            font-size: 1rem;
+            background-color: rgba(0, 0, 0, .25);
+            box-shadow: inset -1px 0 0 rgba(0, 0, 0, .25);
+        }
+        
+        .navbar {
+            background-color: #007bff !important;
+        }
+        
+        .navbar .navbar-toggler {
+            top: .25rem;
+            right: 1rem;
+        }
+        
+        main {
+            margin-left: 240px;
+            padding-top: 48px;
+        }
+        
+        .card {
+            border: none;
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+            margin-bottom: 1.5rem;
+        }
+        
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            font-weight: 600;
+        }
+        
+        .table {
+            font-size: 0.95rem;
+        }
+        
+        .badge {
+            padding: 0.35em 0.65em;
+            font-size: 0.85em;
+        }
+        
+        .btn-group-sm > .btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .stat-card {
+            border-left: 4px solid;
+            padding: 1rem;
+        }
+        
+        .stat-card.primary { border-left-color: var(--primary-color); }
+        .stat-card.success { border-left-color: var(--success-color); }
+        .stat-card.warning { border-left-color: var(--warning-color); }
+        .stat-card.danger { border-left-color: var(--danger-color); }
+        .stat-card.info { border-left-color: var(--info-color); }
+        
+        @media (max-width: 768px) {
+            main {
+                margin-left: 0;
+            }
+            .sidebar {
+                display: none;
+            }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Top Navigation -->
+    <nav class="navbar navbar-dark fixed-top bg-primary flex-md-nowrap p-0 shadow">
+        <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3" href="{% url 'dashboard' %}">
+            <i class="bi bi-hospital"></i> Clínica Médica
+        </a>
+        <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="navbar-nav ms-auto">
+            <div class="nav-item text-nowrap">
+                <span class="nav-link px-3 text-white">
+                    <i class="bi bi-person-circle"></i> {{ user.get_full_name|default:user.username }}
+                    <span class="badge bg-light text-dark ms-2">{{ user.get_role_display }}</span>
+                    <a href="{% url 'logout' %}" class="btn btn-sm btn-outline-light ms-3">
+                        <i class="bi bi-box-arrow-right"></i> Salir
+                    </a>
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Sidebar -->
+    <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+        <div class="sidebar-sticky pt-3">
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
+                        <i class="bi bi-speedometer2"></i> Dashboard
+                    </a>
+                </li>
+                
+                {% if user.role in 'ADMIN,RECEP' %}
+                <li class="nav-item">
+                    <a class="nav-link {% if 'appointment' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'appointment_list' %}">
+                        <i class="bi bi-calendar-check"></i> Citas
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'appointment_search' %}active{% endif %}" href="{% url 'appointment_search' %}">
+                        <i class="bi bi-search"></i> Buscar Horarios
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'calendar' %}active{% endif %}" href="{% url 'calendar' %}">
+                        <i class="bi bi-calendar-week"></i> Calendario
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% if user.role in 'ADMIN,RECEP,MEDICO' %}
+                <li class="nav-item">
+                    <a class="nav-link {% if 'patient' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'patient_list' %}">
+                        <i class="bi bi-people"></i> Pacientes
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% if user.role == 'MEDICO' %}
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'doctor_schedule' %}active{% endif %}" href="{% url 'doctor_schedule' %}">
+                        <i class="bi bi-calendar3"></i> Mi Agenda
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'doctor_availability' %}active{% endif %}" href="{% url 'doctor_availability' %}">
+                        <i class="bi bi-calendar-check"></i> Mi Disponibilidad
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'doctor_patients' %}active{% endif %}" href="{% url 'doctor_patients' %}">
+                        <i class="bi bi-person-lines-fill"></i> Mis Pacientes
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% if user.role == 'PACIENTE' %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'appointment_search' %}">
+                        <i class="bi bi-calendar-plus"></i> Agendar Cita
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% if user.role in 'ADMIN,RECEP' %}
+                <li class="nav-item">
+                    <a class="nav-link {% if 'doctor' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'doctor_list' %}">
+                        <i class="bi bi-person-badge"></i> Médicos
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% if user.role == 'ADMIN' %}
+                <li class="nav-item">
+                    <a class="nav-link {% if 'report' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'reports_dashboard' %}">
+                        <i class="bi bi-graph-up"></i> Reportes
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/admin/" target="_blank">
+                        <i class="bi bi-gear"></i> Administración
+                    </a>
+                </li>
+                {% endif %}
+                
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'profile' %}active{% endif %}" href="{% url 'profile' %}">
+                        <i class="bi bi-person"></i> Mi Perfil
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main role="main" class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+        <div class="container-fluid py-4">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+            
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <script>
+        // Auto-hide alerts after 5 seconds
+        setTimeout(function() {
+            $('.alert').fadeOut('slow');
+        }, 5000);
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

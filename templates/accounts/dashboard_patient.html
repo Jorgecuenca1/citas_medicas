@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+{% block title %}Mi Panel - Paciente{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Bienvenido, {{ user.get_full_name|default:user.username }}</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'appointment_search' %}" class="btn btn-primary">
+            <i class="bi bi-calendar-plus"></i> Nueva Cita
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Mis Próximas Citas</h5>
+                <div>
+                    <a href="{% url 'patient_appointments' %}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-list-ul"></i> Ver todas
+                    </a>
+                    <a href="{% url 'calendar' %}" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-calendar3"></i> Calendario
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if upcoming_appointments %}
+                <div class="list-group">
+                    {% for appointment in upcoming_appointments %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">
+                                <i class="bi bi-calendar-check"></i> 
+                                {{ appointment.slot.start_dt|date:"l, d \d\e F" }}
+                            </h5>
+                            <span class="badge bg-{{ appointment.status|lower }} rounded-pill">
+                                {{ appointment.get_status_display }}
+                            </span>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-6">
+                                <p class="mb-1">
+                                    <strong>Hora:</strong> {{ appointment.slot.start_dt|date:"H:i" }}<br>
+                                    <strong>Médico:</strong> Dr. {{ appointment.slot.doctor.user.get_full_name }}<br>
+                                    <strong>Especialidad:</strong> {{ appointment.slot.doctor.specialty.name }}
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-1">
+                                    <strong>Sede:</strong> {{ appointment.slot.location.name }}<br>
+                                    <strong>Dirección:</strong> {{ appointment.slot.location.address }}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <a href="{% url 'appointment_detail' appointment.id %}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i> Ver detalles
+                            </a>
+                            {% if appointment.status in 'RESERVADO,CONFIRMADO' %}
+                            <a href="{% url 'appointment_reschedule' appointment.id %}" class="btn btn-sm btn-outline-warning">
+                                <i class="bi bi-calendar-x"></i> Reprogramar
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal{{ appointment.id }}">
+                                <i class="bi bi-x-circle"></i> Cancelar
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Modal Cancelar -->
+                    <div class="modal fade" id="cancelModal{{ appointment.id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Cancelar Cita</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="post" action="{% url 'appointment_cancel' appointment.id %}">
+                                    {% csrf_token %}
+                                    <div class="modal-body">
+                                        <p>¿Está seguro que desea cancelar esta cita?</p>
+                                        <div class="mb-3">
+                                            <label for="cancel_reason" class="form-label">Motivo de cancelación:</label>
+                                            <textarea class="form-control" name="cancel_reason" rows="3" required></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                        <button type="submit" class="btn btn-danger">Cancelar Cita</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> No tiene citas próximas programadas.
+                    <a href="{% url 'appointment_search' %}" class="alert-link">Agendar una cita</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">Historial de Citas</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Médico</th>
+                                <th>Especialidad</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for appointment in past_appointments %}
+                            <tr>
+                                <td>{{ appointment.slot.start_dt|date:"d/m/Y" }}</td>
+                                <td>Dr. {{ appointment.slot.doctor.user.get_full_name }}</td>
+                                <td>{{ appointment.slot.doctor.specialty.name }}</td>
+                                <td>
+                                    <span class="badge bg-{{ appointment.status|lower }}">
+                                        {{ appointment.get_status_display }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center">No hay historial de citas</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Mi Información</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Nombre:</strong> {{ user.get_full_name }}</p>
+                <p><strong>Documento:</strong> {{ user.document_id }}</p>
+                <p><strong>Email:</strong> {{ user.email }}</p>
+                <p><strong>Teléfono:</strong> {{ user.phone }}</p>
+                {% if patient %}
+                <p><strong>Fecha de nacimiento:</strong> {{ patient.birthdate|date:"d/m/Y" }}</p>
+                <p><strong>Aseguradora:</strong> {{ patient.insurance|default:"No especificada" }}</p>
+                {% endif %}
+                <hr>
+                <a href="{% url 'profile' %}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-pencil"></i> Actualizar datos
+                </a>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">Resumen</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h3 class="text-primary">{{ total_appointments }}</h3>
+                        <small class="text-muted">Citas totales</small>
+                    </div>
+                    <div class="col-6">
+                        <h3 class="text-success">{{ upcoming_appointments.count }}</h3>
+                        <small class="text-muted">Próximas</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

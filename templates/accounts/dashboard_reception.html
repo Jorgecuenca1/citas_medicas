@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard - Recepción{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Panel de Recepción</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'appointment_search' %}" class="btn btn-primary">
+            <i class="bi bi-calendar-plus"></i> Nueva Cita
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card stat-card warning">
+            <div class="card-body">
+                <h5 class="card-title">Citas de Hoy</h5>
+                <h2 class="text-warning">{{ today_appointments.count }}</h2>
+                <p class="text-muted mb-0">Programadas para hoy</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card stat-card info">
+            <div class="card-body">
+                <h5 class="card-title">Por Confirmar</h5>
+                <h2 class="text-info">{{ pending_confirmations.count }}</h2>
+                <p class="text-muted mb-0">Requieren confirmación</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card stat-card success">
+            <div class="card-body">
+                <h5 class="card-title">Slots Libres Hoy</h5>
+                <h2 class="text-success">{{ available_slots_today }}</h2>
+                <p class="text-muted mb-0">Disponibles</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Citas de Hoy</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Hora</th>
+                                <th>Paciente</th>
+                                <th>Médico</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for appointment in today_appointments %}
+                            <tr>
+                                <td>{{ appointment.slot.start_dt|date:"H:i" }}</td>
+                                <td>
+                                    {{ appointment.patient.user.get_full_name }}<br>
+                                    <small class="text-muted">Doc: {{ appointment.patient.user.document_id }}</small>
+                                </td>
+                                <td>Dr. {{ appointment.slot.doctor.user.get_full_name }}</td>
+                                <td>
+                                    {% if appointment.status == 'CONFIRMADO' %}
+                                        {% if appointment.checked_in_at %}
+                                            <span class="badge bg-info">Check-in OK</span>
+                                        {% else %}
+                                            <span class="badge bg-success">Confirmado</span>
+                                        {% endif %}
+                                    {% elif appointment.status == 'RESERVADO' %}
+                                        <span class="badge bg-warning">Por confirmar</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ appointment.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        {% if appointment.status == 'RESERVADO' %}
+                                        <form method="post" action="{% url 'appointment_confirm' appointment.id %}" style="display:inline;">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-success btn-sm" title="Confirmar">
+                                                <i class="bi bi-check-circle"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                        {% if appointment.status == 'CONFIRMADO' and not appointment.checked_in_at %}
+                                        <form method="post" action="{% url 'appointment_checkin' appointment.id %}" style="display:inline;">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-info btn-sm" title="Check-in">
+                                                <i class="bi bi-person-check"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                        <a href="{% url 'appointment_detail' appointment.id %}" class="btn btn-primary btn-sm" title="Ver detalles">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center">No hay citas programadas para hoy</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Acciones Rápidas</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'appointment_search' %}" class="btn btn-primary">
+                        <i class="bi bi-search"></i> Buscar Horarios
+                    </a>
+                    <a href="{% url 'patient_create' %}" class="btn btn-success">
+                        <i class="bi bi-person-plus"></i> Nuevo Paciente
+                    </a>
+                    <a href="{% url 'patient_list' %}" class="btn btn-info">
+                        <i class="bi bi-people"></i> Lista de Pacientes
+                    </a>
+                    <a href="{% url 'calendar' %}" class="btn btn-warning">
+                        <i class="bi bi-calendar-week"></i> Calendario
+                    </a>
+                    <a href="{% url 'appointment_list' %}" class="btn btn-secondary">
+                        <i class="bi bi-list-ul"></i> Todas las Citas
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">Pendientes de Confirmación</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    {% for appointment in pending_confirmations|slice:":5" %}
+                    <a href="{% url 'appointment_detail' appointment.id %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ appointment.patient.user.get_full_name }}</h6>
+                            <small>{{ appointment.slot.start_dt|date:"d/m H:i" }}</small>
+                        </div>
+                        <p class="mb-1">Dr. {{ appointment.slot.doctor.user.get_full_name }}</p>
+                    </a>
+                    {% empty %}
+                    <p class="text-muted text-center">No hay citas pendientes</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

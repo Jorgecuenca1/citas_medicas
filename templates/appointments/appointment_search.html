@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% block title %}Buscar Horarios Disponibles{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Buscar Horarios Disponibles</h1>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Criterios de Búsqueda</h5>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label for="specialty" class="form-label">Especialidad</label>
+                    <select class="form-select" id="specialty" name="specialty" onchange="loadDoctors()">
+                        <option value="">Todas las especialidades</option>
+                        {% for specialty in specialties %}
+                        <option value="{{ specialty.id }}">{{ specialty.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="doctor" class="form-label">Médico</label>
+                    <select class="form-select" id="doctor" name="doctor">
+                        <option value="">Cualquier médico</option>
+                    </select>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="location" class="form-label">Sede</label>
+                    <select class="form-select" id="location" name="location">
+                        <option value="">Todas las sedes</option>
+                        {% for location in locations %}
+                        <option value="{{ location.id }}">{{ location.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label for="date_from" class="form-label">Desde</label>
+                    <input type="date" class="form-control" id="date_from" name="date_from" min="{{ today|date:'Y-m-d' }}" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="date_to" class="form-label">Hasta</label>
+                    <input type="date" class="form-control" id="date_to" name="date_to">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="appointment_type" class="form-label">Tipo de Cita</label>
+                    <select class="form-select" id="appointment_type" name="appointment_type">
+                        {% for type in appointment_types %}
+                        <option value="{{ type.id }}">{{ type.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-search"></i> Buscar Horarios
+            </button>
+        </form>
+    </div>
+</div>
+
+{% if search_performed %}
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0">Horarios Disponibles</h5>
+    </div>
+    <div class="card-body">
+        {% if slots %}
+        {% regroup slots by start_dt.date as slots_by_day %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> Se encontraron {{ slots|length }} horarios disponibles en {{ slots_by_day|length }} día(s)
+        </div>
+        
+        {% for day in slots_by_day %}
+        <div class="mb-4">
+            <h5 class="border-bottom pb-2">
+                <i class="bi bi-calendar-date"></i> {{ day.grouper|date:"l, d \d\e F \d\e Y" }}
+            </h5>
+            <div class="row">
+                {% for slot in day.list %}
+                <div class="col-md-3 col-sm-6 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h6 class="card-title text-primary">
+                                <i class="bi bi-clock"></i> {{ slot.start_dt|date:"H:i" }}
+                            </h6>
+                            <p class="card-text small">
+                                <strong>Dr.</strong> {{ slot.doctor.user.get_full_name }}<br>
+                                <strong>Esp:</strong> {{ slot.doctor.specialty.name }}<br>
+                                <strong>Sede:</strong> {{ slot.location.name }}
+                            </p>
+                            <a href="{% url 'appointment_book' slot.id %}" class="btn btn-success btn-sm w-100">
+                                <i class="bi bi-check-circle"></i> Reservar
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i> No se encontraron horarios disponibles con los criterios seleccionados.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<script>
+function loadDoctors() {
+    const specialtyId = document.getElementById('specialty').value;
+    const doctorSelect = document.getElementById('doctor');
+    
+    if (!specialtyId) {
+        doctorSelect.innerHTML = '<option value="">Cualquier médico</option>';
+        return;
+    }
+    
+    fetch(`/appointments/api/doctors-by-specialty/?specialty_id=${specialtyId}`)
+        .then(response => response.json())
+        .then(data => {
+            doctorSelect.innerHTML = '<option value="">Cualquier médico</option>';
+            data.forEach(doctor => {
+                const option = document.createElement('option');
+                option.value = doctor.id;
+                option.textContent = `Dr. ${doctor.user__first_name} ${doctor.user__last_name}`;
+                doctorSelect.appendChild(option);
+            });
+        });
+}
+</script>
+{% endblock %}

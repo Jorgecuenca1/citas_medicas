@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% block title %}Detalle de Cita #{{ appointment.id }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Cita #{{ appointment.id }}</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        {% if appointment.status == 'RESERVADO' %}
+        <form method="post" action="{% url 'appointment_confirm' appointment.id %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success me-2">
+                <i class="bi bi-check-circle"></i> Confirmar
+            </button>
+        </form>
+        {% endif %}
+        
+        {% if appointment.status in 'RESERVADO,CONFIRMADO' %}
+        <a href="{% url 'appointment_reschedule' appointment.id %}" class="btn btn-warning me-2">
+            <i class="bi bi-calendar-x"></i> Reprogramar
+        </a>
+        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#cancelModal">
+            <i class="bi bi-x-circle"></i> Cancelar
+        </button>
+        {% endif %}
+        
+        {% if appointment.status == 'CONFIRMADO' and not appointment.checked_in_at %}
+        <form method="post" action="{% url 'appointment_checkin' appointment.id %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-info ms-2">
+                <i class="bi bi-person-check"></i> Check-in
+            </button>
+        </form>
+        {% endif %}
+        
+        {% if appointment.checked_in_at and appointment.status != 'ATENDIDO' %}
+        <form method="post" action="{% url 'appointment_attend' appointment.id %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary ms-2">
+                <i class="bi bi-check-square"></i> Marcar Atendido
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Información de la Cita</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Estado:</strong> 
+                            {% if appointment.status == 'RESERVADO' %}
+                                <span class="badge bg-warning">Reservado</span>
+                            {% elif appointment.status == 'CONFIRMADO' %}
+                                <span class="badge bg-success">Confirmado</span>
+                            {% elif appointment.status == 'ATENDIDO' %}
+                                <span class="badge bg-primary">Atendido</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ appointment.get_status_display }}</span>
+                            {% endif %}
+                        </p>
+                        <p><strong>Fecha:</strong> {{ appointment.slot.start_dt|date:"l, d \d\e F \d\e Y" }}</p>
+                        <p><strong>Hora:</strong> {{ appointment.slot.start_dt|date:"H:i" }} - {{ appointment.slot.end_dt|date:"H:i" }}</p>
+                        <p><strong>Sede:</strong> {{ appointment.slot.location.name }}</p>
+                        <p><strong>Dirección:</strong> {{ appointment.slot.location.address }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Médico:</strong> Dr. {{ appointment.slot.doctor.user.get_full_name }}</p>
+                        <p><strong>Especialidad:</strong> {{ appointment.slot.doctor.specialty.name }}</p>
+                        <p><strong>Reservada:</strong> {{ appointment.booked_at|date:"d/m/Y H:i" }}</p>
+                        {% if appointment.confirmed_at %}
+                        <p><strong>Confirmada:</strong> {{ appointment.confirmed_at|date:"d/m/Y H:i" }}</p>
+                        {% endif %}
+                        {% if appointment.checked_in_at %}
+                        <p><strong>Check-in:</strong> {{ appointment.checked_in_at|date:"d/m/Y H:i" }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if appointment.notes %}
+                <hr>
+                <p><strong>Notas:</strong></p>
+                <p>{{ appointment.notes }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Información del Paciente</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Nombre:</strong> {{ appointment.patient.user.get_full_name }}</p>
+                <p><strong>Documento:</strong> {{ appointment.patient.user.document_id }}</p>
+                <p><strong>Teléfono:</strong> {{ appointment.patient.user.phone }}</p>
+                <p><strong>Email:</strong> {{ appointment.patient.user.email }}</p>
+                <p><strong>Edad:</strong> 
+                    {% load filters %}
+                    {{ appointment.patient.birthdate|age }} años
+                </p>
+                <p><strong>Aseguradora:</strong> {{ appointment.patient.insurance|default:"No especificada" }}</p>
+                <hr>
+                <a href="{% url 'patient_detail' appointment.patient.id %}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-person"></i> Ver perfil completo
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Cancelar -->
+<div class="modal fade" id="cancelModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cancelar Cita</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'appointment_cancel' appointment.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p>¿Está seguro que desea cancelar esta cita?</p>
+                    <div class="mb-3">
+                        <label for="cancel_reason" class="form-label">Motivo de cancelación:</label>
+                        <textarea class="form-control" name="cancel_reason" rows="3" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="submit" class="btn btn-danger">Cancelar Cita</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

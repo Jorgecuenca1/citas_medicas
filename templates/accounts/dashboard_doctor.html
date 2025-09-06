@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard - Médico{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Mi Panel Médico</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <span class="badge bg-primary">{{ doctor.specialty.name }}</span>
+    </div>
+</div>
+
+<!-- Accesos rápidos -->
+<div class="row mb-3">
+    <div class="col-md-12">
+        <div class="btn-group" role="group">
+            <a href="{% url 'doctor_schedule' %}" class="btn btn-outline-primary">
+                <i class="bi bi-calendar-week"></i> Ver Mi Agenda
+            </a>
+            <a href="{% url 'doctor_availability' %}" class="btn btn-outline-success">
+                <i class="bi bi-calendar-check"></i> Gestionar Disponibilidad
+            </a>
+            <a href="{% url 'calendar' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-calendar3"></i> Calendario General
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card stat-card primary">
+            <div class="card-body">
+                <h5 class="card-title">Citas de Hoy</h5>
+                <h2 class="text-primary">{{ today_appointments.count }}</h2>
+                <p class="text-muted mb-0">Pacientes programados</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card stat-card warning">
+            <div class="card-body">
+                <h5 class="card-title">Esta Semana</h5>
+                <h2 class="text-warning">{{ week_appointments }}</h2>
+                <p class="text-muted mb-0">Total de citas</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card stat-card info">
+            <div class="card-body">
+                <h5 class="card-title">Pendientes</h5>
+                <h2 class="text-info">{{ pending_patients }}</h2>
+                <p class="text-muted mb-0">Por atender</p>
+                <a href="{% url 'doctor_schedule' %}" class="btn btn-sm btn-outline-info mt-2">
+                    <i class="bi bi-list-check"></i> Ver lista
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Agenda del Día</h5>
+                <a href="{% url 'doctor_schedule' %}" class="btn btn-sm btn-outline-primary">Ver semana completa</a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Hora</th>
+                                <th>Paciente</th>
+                                <th>Edad</th>
+                                <th>Tipo</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for appointment in today_appointments %}
+                            <tr>
+                                <td>{{ appointment.slot.start_dt|date:"H:i" }}</td>
+                                <td>
+                                    <strong>{{ appointment.patient.user.get_full_name }}</strong><br>
+                                    <small class="text-muted">{{ appointment.patient.user.document_id }}</small>
+                                </td>
+                                <td>
+                                    {% load filters %}
+                                    {{ appointment.patient.birthdate|age }} años
+                                </td>
+                                <td>Consulta</td>
+                                <td>
+                                    {% if appointment.status == 'ATENDIDO' %}
+                                        <span class="badge bg-success">Atendido</span>
+                                    {% elif appointment.checked_in_at %}
+                                        <span class="badge bg-info">En espera</span>
+                                    {% elif appointment.status == 'CONFIRMADO' %}
+                                        <span class="badge bg-primary">Confirmado</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">{{ appointment.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if appointment.status != 'ATENDIDO' %}
+                                    <form method="post" action="{% url 'appointment_attend' appointment.id %}" style="display:inline;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-success btn-sm" title="Marcar como atendido">
+                                            <i class="bi bi-check-circle"></i> Atender
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    <a href="{% url 'appointment_detail' appointment.id %}" class="btn btn-info btn-sm">
+                                        <i class="bi bi-eye"></i> Ver
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center">No hay citas programadas para hoy</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Accesos Directos</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <a href="{% url 'doctor_schedule' %}" class="list-group-item list-group-item-action">
+                        <i class="bi bi-calendar3"></i> Mi agenda completa
+                    </a>
+                    <a href="{% url 'doctor_patients' %}" class="list-group-item list-group-item-action">
+                        <i class="bi bi-people"></i> Mis pacientes
+                    </a>
+                    <a href="{% url 'profile' %}" class="list-group-item list-group-item-action">
+                        <i class="bi bi-person"></i> Mi perfil
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Resumen de la Semana</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="weekChart" height="150"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const ctx = document.getElementById('weekChart').getContext('2d');
+const weekChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'],
+        datasets: [{
+            label: 'Citas programadas',
+            data: [8, 10, 7, 12, 9],
+            backgroundColor: 'rgba(13, 110, 253, 0.5)',
+            borderColor: 'rgba(13, 110, 253, 1)',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

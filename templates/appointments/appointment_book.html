@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %}Reservar Cita{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Reservar Cita</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Detalles del Horario</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Fecha:</strong> {{ slot.start_dt|date:"l, d \d\e F \d\e Y" }}</p>
+                <p><strong>Hora:</strong> {{ slot.start_dt|date:"H:i" }} - {{ slot.end_dt|date:"H:i" }}</p>
+                <p><strong>Médico:</strong> Dr. {{ slot.doctor.user.get_full_name }}</p>
+                <p><strong>Especialidad:</strong> {{ slot.doctor.specialty.name }}</p>
+                <p><strong>Sede:</strong> {{ slot.location.name }}</p>
+                <p><strong>Dirección:</strong> {{ slot.location.address }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">{% if is_patient %}Confirmar Reserva{% else %}Seleccionar Paciente{% endif %}</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    {% if is_patient %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> 
+                        Está reservando esta cita para: <strong>{{ user.get_full_name }}</strong>
+                    </div>
+                    {% else %}
+                    <div class="mb-3">
+                        <label for="patient_id" class="form-label">Paciente</label>
+                        <select class="form-select" id="patient_id" name="patient_id" required>
+                            <option value="">Seleccione un paciente</option>
+                            {% for patient in patients %}
+                            <option value="{{ patient.id }}">
+                                {{ patient.user.get_full_name }} - {{ patient.user.document_id }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Motivo de consulta (opcional)</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Describa brevemente el motivo de su consulta"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-circle"></i> Confirmar Reserva
+                    </button>
+                    <a href="{% url 'appointment_search' %}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Volver
+                    </a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

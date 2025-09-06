@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% block title %}Dr. {{ doctor.user.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Dr. {{ doctor.user.get_full_name }}</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <span class="badge bg-primary">{{ doctor.specialty.name }}</span>
+        <span class="badge bg-{{ doctor.active|yesno:'success,danger' }} ms-2">
+            {{ doctor.active|yesno:'Activo,Inactivo' }}
+        </span>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Información del Médico</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Nombre completo:</strong> {{ doctor.user.get_full_name }}</p>
+                <p><strong>Especialidad:</strong> {{ doctor.specialty.name }}</p>
+                <p><strong>Licencia médica:</strong> {{ doctor.license_number }}</p>
+                <p><strong>Email:</strong> {{ doctor.user.email }}</p>
+                <p><strong>Teléfono:</strong> {{ doctor.user.phone|default:"No registrado" }}</p>
+                <hr>
+                <p><strong>Sedes de atención:</strong></p>
+                <ul>
+                    {% for location in doctor.locations.all %}
+                    <li>{{ location.name }}</li>
+                    {% empty %}
+                    <li>No asignado a ninguna sede</li>
+                    {% endfor %}
+                </ul>
+                {% if doctor.bio %}
+                <hr>
+                <p><strong>Biografía:</strong></p>
+                <p>{{ doctor.bio }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Próximas Citas</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Hora</th>
+                                <th>Paciente</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for appointment in upcoming_appointments %}
+                            <tr>
+                                <td>{{ appointment.slot.start_dt|date:"d/m/Y" }}</td>
+                                <td>{{ appointment.slot.start_dt|date:"H:i" }}</td>
+                                <td>{{ appointment.patient.user.get_full_name }}</td>
+                                <td>
+                                    {% if appointment.status == 'CONFIRMADO' %}
+                                        <span class="badge bg-success">Confirmado</span>
+                                    {% elif appointment.status == 'RESERVADO' %}
+                                        <span class="badge bg-warning">Reservado</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ appointment.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center">No hay citas programadas</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

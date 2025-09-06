@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+{% block title %}Calendario de Citas{% endblock %}
+
+{% block extra_css %}
+<style>
+    .calendar-nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    .calendar-container {
+        overflow-x: auto;
+    }
+    .calendar-table {
+        width: 100%;
+        min-width: 800px;
+    }
+    .calendar-table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        text-align: center;
+        padding: 10px;
+    }
+    .calendar-table td {
+        vertical-align: top;
+        min-height: 100px;
+        padding: 8px;
+        border: 1px solid #dee2e6;
+    }
+    .calendar-day-header {
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    .calendar-appointment {
+        background-color: #e7f3ff;
+        border-left: 3px solid #007bff;
+        padding: 5px;
+        margin-bottom: 5px;
+        font-size: 0.85rem;
+        border-radius: 3px;
+    }
+    .calendar-appointment.confirmed {
+        background-color: #d4edda;
+        border-left-color: #28a745;
+    }
+    .calendar-appointment.cancelled {
+        background-color: #f8d7da;
+        border-left-color: #dc3545;
+    }
+    .view-buttons .btn {
+        margin: 0 2px;
+    }
+    .today-highlight {
+        background-color: #fff3cd !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Calendario de Citas</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="view-buttons btn-group me-2">
+            <a href="?view=day&date={{ current_date|date:'Y-m-d' }}" 
+               class="btn btn-sm {% if view_type == 'day' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                Día
+            </a>
+            <a href="?view=week&date={{ current_date|date:'Y-m-d' }}" 
+               class="btn btn-sm {% if view_type == 'week' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                Semana
+            </a>
+            <a href="?view=month&date={{ current_date|date:'Y-m-d' }}" 
+               class="btn btn-sm {% if view_type == 'month' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                Mes
+            </a>
+        </div>
+        {% if user.role == 'PACIENTE' %}
+        <a href="{% url 'patient_appointments' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-list-ul"></i> Ver Lista
+        </a>
+        {% endif %}
+        <a href="{% url 'appointment_search' %}" class="btn btn-sm btn-primary">
+            <i class="bi bi-plus-circle"></i> Nueva Cita
+        </a>
+    </div>
+</div>
+
+<div class="calendar-nav">
+    <div>
+        <a href="?view={{ view_type }}&date={{ prev_date }}" class="btn btn-outline-primary">
+            <i class="bi bi-chevron-left"></i> Anterior
+        </a>
+        <a href="?view={{ view_type }}" class="btn btn-outline-secondary mx-2">
+            Hoy
+        </a>
+        <a href="?view={{ view_type }}&date={{ next_date }}" class="btn btn-outline-primary">
+            Siguiente <i class="bi bi-chevron-right"></i>
+        </a>
+    </div>
+    <div>
+        <h4>
+            {% if view_type == 'day' %}
+                {{ current_date|date:"l, d \d\e F \d\e Y" }}
+            {% elif view_type == 'week' %}
+                Semana del {{ start_date|date:"d/m" }} al {{ end_date|date:"d/m/Y" }}
+            {% else %}
+                {{ current_date|date:"F \d\e Y" }}
+            {% endif %}
+        </h4>
+    </div>
+    <div>
+        {% if doctors and user.role != 'PACIENTE' %}
+        <select class="form-select form-select-sm" style="width: 200px;" onchange="window.location.href='?view={{ view_type }}&date={{ current_date|date:'Y-m-d' }}&doctor=' + this.value">
+            <option value="">Todos los médicos</option>
+            {% for doctor in doctors %}
+            <option value="{{ doctor.id }}" {% if request.GET.doctor == doctor.id|stringformat:"s" %}selected{% endif %}>
+                Dr. {{ doctor.user.get_full_name }}
+            </option>
+            {% endfor %}
+        </select>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div id="calendar"></div>
+    </div>
+</div>
+
+<link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet' />
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/es.js'></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var calendarEl = document.getElementById('calendar');
+    var calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: '{{ view_type }}GridWeek',
+        locale: 'es',
+        headerToolbar: false,  // Desactivamos el toolbar por defecto ya que tenemos nuestros propios controles
+        initialDate: '{{ current_date|date:"Y-m-d" }}',
+        events: [
+            {% for appointment in appointments %}
+            {
+                title: {% if user.role == 'PACIENTE' %}'Dr. {{ appointment.slot.doctor.user.get_full_name|escapejs }}'{% else %}'{{ appointment.patient.user.get_full_name|escapejs }}'{% endif %},
+                start: '{{ appointment.slot.start_dt|date:"c" }}',
+                end: '{{ appointment.slot.end_dt|date:"c" }}',
+                url: '{% url "appointment_detail" appointment.id %}',
+                extendedProps: {
+                    status: '{{ appointment.get_status_display }}',
+                    location: '{{ appointment.slot.location.name|escapejs }}',
+                    {% if user.role == 'PACIENTE' %}
+                    specialty: '{{ appointment.slot.doctor.specialty.name|escapejs }}'
+                    {% else %}
+                    doctor: 'Dr. {{ appointment.slot.doctor.user.get_full_name|escapejs }}'
+                    {% endif %}
+                },
+                {% if appointment.status == 'CONFIRMADO' %}
+                backgroundColor: '#28a745',
+                borderColor: '#28a745',
+                {% elif appointment.status == 'RESERVADO' %}
+                backgroundColor: '#ffc107',
+                borderColor: '#ffc107',
+                textColor: '#000',
+                {% elif appointment.status == 'ATENDIDO' %}
+                backgroundColor: '#007bff',
+                borderColor: '#007bff',
+                {% elif appointment.status in 'CANCELADO_PAC,CANCELADO_CLIN' %}
+                backgroundColor: '#dc3545',
+                borderColor: '#dc3545',
+                {% else %}
+                backgroundColor: '#6c757d',
+                borderColor: '#6c757d',
+                {% endif %}
+            },
+            {% endfor %}
+        ],
+        eventClick: function(info) {
+            info.jsEvent.preventDefault();
+            window.location.href = info.event.url;
+        },
+        eventContent: function(arg) {
+            let content = document.createElement('div');
+            content.innerHTML = '<b>' + arg.timeText + '</b><br/>' + 
+                              arg.event.title + '<br/>' +
+                              '<small>' + arg.event.extendedProps.location + '</small><br/>' +
+                              '<small>' + arg.event.extendedProps.status + '</small>';
+            return { domNodes: [content] }
+        },
+        slotMinTime: '08:00:00',
+        slotMaxTime: '20:00:00',
+        height: 'auto',
+        nowIndicator: true,
+        dayMaxEvents: true,
+        weekends: true,
+        businessHours: {
+            daysOfWeek: [1, 2, 3, 4, 5, 6],
+            startTime: '08:00',
+            endTime: '20:00',
+        }
+    });
+    calendar.render();
+});
+</script>
+{% endblock %}

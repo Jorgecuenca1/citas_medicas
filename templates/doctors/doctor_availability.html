@@ -1,0 +1,672 @@
+{% extends 'base.html' %}
+{% block title %}Mi Disponibilidad - Dr. {{ doctor.user.get_full_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .availability-calendar {
+        width: 100%;
+    }
+    .availability-calendar th {
+        background-color: #f8f9fa;
+        padding: 10px;
+        text-align: center;
+    }
+    .availability-calendar td {
+        border: 1px solid #dee2e6;
+        padding: 5px;
+        vertical-align: top;
+        min-height: 120px;
+        position: relative;
+    }
+    .day-cell {
+        min-height: 100px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    .day-cell:hover {
+        background-color: #f0f0f0;
+    }
+    .day-header {
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    .day-not-current-month {
+        background-color: #f8f9fa;
+        color: #6c757d;
+    }
+    .day-today {
+        background-color: #fff3cd;
+    }
+    .day-timeoff {
+        background-color: #f8d7da !important;
+    }
+    .day-stats {
+        font-size: 0.85rem;
+    }
+    .slot-indicator {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        margin: 2px;
+    }
+    .slot-available {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    .slot-occupied {
+        background-color: #cce5ff;
+        color: #004085;
+    }
+    .slot-unavailable {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    .timeoff-badge {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        font-size: 0.7rem;
+    }
+    .nav-month {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Gestión de Disponibilidad</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'doctor_schedule' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-calendar-week"></i> Ver Agenda
+        </a>
+    </div>
+</div>
+
+<!-- Navegación entre meses -->
+<div class="nav-month">
+    <div>
+        <a href="?month={{ prev_month.month }}&year={{ prev_month.year }}" class="btn btn-outline-primary">
+            <i class="bi bi-chevron-left"></i> {{ prev_month|date:"F Y" }}
+        </a>
+    </div>
+    <div>
+        <h3>{{ current_month|date:"F Y" }}</h3>
+    </div>
+    <div>
+        <a href="?month={{ next_month.month }}&year={{ next_month.year }}" class="btn btn-outline-primary">
+            {{ next_month|date:"F Y" }} <i class="bi bi-chevron-right"></i>
+        </a>
+    </div>
+</div>
+
+<!-- Resumen del mes -->
+<div class="row mb-3">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">Total Slots</h5>
+                <h3 class="text-primary">{{ month_stats.total_slots }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">Disponibles</h5>
+                <h3 class="text-success">{{ month_stats.available }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">Ocupados</h5>
+                <h3 class="text-info">{{ month_stats.occupied }}</h3>
+                <small class="text-muted">Con citas</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5 class="card-title">Bloqueados</h5>
+                <h3 class="text-danger">{{ month_stats.blocked }}</h3>
+                <small class="text-muted">No disponibles</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Calendario de disponibilidad -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Calendario de Disponibilidad</h5>
+        <small class="text-muted">Haga clic en un día para gestionar su disponibilidad</small>
+    </div>
+    <div class="card-body">
+        <table class="table availability-calendar">
+            <thead>
+                <tr>
+                    <th>Domingo</th>
+                    <th>Lunes</th>
+                    <th>Martes</th>
+                    <th>Miércoles</th>
+                    <th>Jueves</th>
+                    <th>Viernes</th>
+                    <th>Sábado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for week in calendar_weeks %}
+                <tr>
+                    {% for day in week %}
+                    <td class="day-cell {% if not day.is_current_month %}day-not-current-month{% endif %} {% if day.is_today %}day-today{% endif %} {% if day.is_timeoff %}day-timeoff{% endif %}"
+                        data-date="{{ day.date|date:'Y-m-d' }}"
+                        data-is-timeoff="{{ day.is_timeoff|yesno:'true,false' }}">
+                        
+                        <div class="day-header">
+                            {{ day.date|date:"j" }}
+                            {% if day.is_timeoff %}
+                            <span class="badge bg-danger timeoff-badge">No disponible</span>
+                            {% endif %}
+                        </div>
+                        
+                        {% if day.is_current_month and not day.is_timeoff %}
+                        <div class="day-stats">
+                            {% if day.total_slots > 0 %}
+                                {% if day.available > 0 %}
+                                <span class="slot-indicator slot-available">
+                                    {{ day.available }} libres
+                                </span>
+                                {% endif %}
+                                {% if day.occupied > 0 %}
+                                <span class="slot-indicator slot-occupied">
+                                    {{ day.occupied }} ocupados
+                                </span>
+                                {% endif %}
+                                {% if day.blocked > 0 %}
+                                <span class="slot-indicator slot-unavailable">
+                                    {{ day.blocked }} bloqueados
+                                </span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">Sin horarios</span>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        
+                        {% if day.is_current_month %}
+                        <div class="mt-2">
+                            {% if day.is_timeoff %}
+                                <button class="btn btn-sm btn-success enable-day" data-date="{{ day.date|date:'Y-m-d' }}" type="button">
+                                    <i class="bi bi-check-circle"></i> Habilitar
+                                </button>
+                            {% else %}
+                                {% if day.total_slots > 0 %}
+                                    <!-- Si tiene slots, mostrar botón para ver/editar horarios -->
+                                    <button class="btn btn-sm btn-outline-info view-slots" data-date="{{ day.date|date:'Y-m-d' }}" type="button">
+                                        <i class="bi bi-clock"></i> Gestionar
+                                    </button>
+                                {% elif day.date >= today %}
+                                    <!-- Solo para días futuros sin slots, mostrar opción de bloquear -->
+                                    <button class="btn btn-sm btn-outline-secondary disable-day" data-date="{{ day.date|date:'Y-m-d' }}" type="button">
+                                        <i class="bi bi-calendar-x"></i> Sin horarios
+                                    </button>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Lista de días no disponibles -->
+{% if timeoffs %}
+<div class="card mt-3">
+    <div class="card-header">
+        <h5 class="mb-0">Días No Disponibles</h5>
+    </div>
+    <div class="card-body">
+        <div class="list-group">
+            {% for timeoff in timeoffs %}
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>{{ timeoff.start_dt|date:"l, d \d\e F \d\e Y" }}</strong>
+                    {% if timeoff.reason %}
+                    <br><small class="text-muted">Motivo: {{ timeoff.reason }}</small>
+                    {% endif %}
+                </div>
+                <button class="btn btn-sm btn-success enable-day" data-date="{{ timeoff.start_dt|date:'Y-m-d' }}">
+                    <i class="bi bi-check-circle"></i> Habilitar día
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal para ver/editar slots del día -->
+<div class="modal fade" id="slotsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Gestionar Horarios - <span id="modal-date"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Resumen del día -->
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <div class="card text-center">
+                            <div class="card-body p-2">
+                                <h6 class="card-title">Disponibles</h6>
+                                <h3 class="text-success" id="slots-available">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center">
+                            <div class="card-body p-2">
+                                <h6 class="card-title">Ocupados</h6>
+                                <h3 class="text-info" id="slots-occupied">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center">
+                            <div class="card-body p-2">
+                                <h6 class="card-title">Bloqueados</h6>
+                                <h3 class="text-danger" id="slots-blocked">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Lista de slots -->
+                <div id="slots-list" class="list-group" style="max-height: 400px; overflow-y: auto;">
+                    <!-- Se carga dinámicamente -->
+                </div>
+                
+                <!-- Mensaje de carga -->
+                <div id="slots-loading" class="text-center py-3" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                    <p class="mt-2">Cargando horarios...</p>
+                </div>
+                
+                <!-- Mensaje de error -->
+                <div id="slots-error" class="alert alert-danger" style="display: none;">
+                    Error al cargar los horarios
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" id="block-all-day">
+                    <i class="bi bi-x-circle"></i> Bloquear Todo el Día
+                </button>
+                <button type="button" class="btn btn-success" id="unblock-all-day">
+                    <i class="bi bi-check-circle"></i> Habilitar Todo el Día
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para marcar día no disponible -->
+<div class="modal fade" id="timeoffModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Marcar día como no disponible</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="timeoffForm">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <input type="hidden" id="timeoff-date" name="date">
+                    <p>¿Está seguro que desea marcar el día <strong id="timeoff-date-display"></strong> como no disponible?</p>
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> 
+                        Esto cancelará todos los slots libres de ese día. Las citas ya confirmadas no se verán afectadas.
+                    </div>
+                    <div class="mb-3">
+                        <label for="reason" class="form-label">Motivo (opcional)</label>
+                        <textarea class="form-control" id="reason" name="reason" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">Confirmar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Inicializando gestión de disponibilidad...');
+    
+    // Marcar día como no disponible
+    function setupDisableDayButtons() {
+        document.querySelectorAll('.disable-day').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const date = this.dataset.date;
+                console.log('Bloqueando día:', date);
+                
+                const dateObj = new Date(date + 'T12:00:00');
+                const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                const dateFormatted = dateObj.toLocaleDateString('es-ES', options);
+                
+                document.getElementById('timeoff-date').value = date;
+                document.getElementById('timeoff-date-display').textContent = dateFormatted;
+                
+                const modal = new bootstrap.Modal(document.getElementById('timeoffModal'));
+                modal.show();
+            });
+        });
+    }
+    
+    // Habilitar día
+    function setupEnableDayButtons() {
+        document.querySelectorAll('.enable-day').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const date = this.dataset.date;
+                console.log('Habilitando día:', date);
+                
+                if (confirm('¿Desea habilitar este día?')) {
+                    const formData = new FormData();
+                    formData.append('date', date);
+                    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                    
+                    fetch("{% url 'remove_timeoff' %}", {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Día habilitado correctamente');
+                            location.reload();
+                        } else {
+                            alert('Error: ' + (data.error || 'No se pudo habilitar el día'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error al habilitar el día');
+                    });
+                }
+            });
+        });
+    }
+    
+    // Ver slots del día
+    function setupViewSlotsButtons() {
+        document.querySelectorAll('.view-slots').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const date = this.dataset.date;
+                console.log('Viendo slots del día:', date);
+                
+                // Cargar slots del día
+                loadDaySlots(date);
+            });
+        });
+    }
+    
+    // Cargar slots de un día específico
+    function loadDaySlots(date) {
+        const dateObj = new Date(date + 'T12:00:00');
+        const dateFormatted = dateObj.toLocaleDateString('es-ES', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        });
+        
+        // Actualizar título del modal
+        document.getElementById('modal-date').textContent = dateFormatted;
+        
+        // Mostrar modal
+        const modal = new bootstrap.Modal(document.getElementById('slotsModal'));
+        modal.show();
+        
+        // Mostrar loading
+        document.getElementById('slots-loading').style.display = 'block';
+        document.getElementById('slots-list').style.display = 'none';
+        document.getElementById('slots-error').style.display = 'none';
+        
+        // Guardar fecha actual para los botones del modal
+        document.getElementById('slotsModal').dataset.currentDate = date;
+        
+        // Cargar slots via AJAX
+        fetch(`{% url 'get_day_slots' %}?date=${date}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('slots-loading').style.display = 'none';
+                
+                if (data.success) {
+                    // Actualizar contadores
+                    document.getElementById('slots-available').textContent = data.available;
+                    document.getElementById('slots-occupied').textContent = data.occupied;
+                    document.getElementById('slots-blocked').textContent = data.blocked;
+                    
+                    // Renderizar lista de slots
+                    const slotsList = document.getElementById('slots-list');
+                    slotsList.style.display = 'block';
+                    slotsList.innerHTML = '';
+                    
+                    if (data.slots.length === 0) {
+                        slotsList.innerHTML = '<div class="alert alert-info">No hay horarios configurados para este día</div>';
+                    } else {
+                        data.slots.forEach(slot => {
+                            const slotItem = document.createElement('div');
+                            slotItem.className = 'list-group-item';
+                            
+                            let statusBadge = '';
+                            let actionButton = '';
+                            
+                            if (slot.status === 'LIBRE') {
+                                statusBadge = '<span class="badge bg-success">Disponible</span>';
+                                actionButton = `<button class="btn btn-sm btn-danger" onclick="toggleSlot(${slot.id}, 'disable')">
+                                    <i class="bi bi-x-circle"></i> Bloquear
+                                </button>`;
+                            } else if (slot.status === 'BLOQUEADO') {
+                                statusBadge = '<span class="badge bg-danger">Bloqueado</span>';
+                                actionButton = `<button class="btn btn-sm btn-success" onclick="toggleSlot(${slot.id}, 'enable')">
+                                    <i class="bi bi-check-circle"></i> Habilitar
+                                </button>`;
+                            } else if (slot.status === 'OCUPADO') {
+                                statusBadge = '<span class="badge bg-info">Ocupado</span>';
+                                if (slot.appointment) {
+                                    statusBadge += ` - ${slot.appointment.patient}`;
+                                }
+                                actionButton = '<span class="text-muted">No modificable</span>';
+                            }
+                            
+                            slotItem.innerHTML = `
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>${slot.start} - ${slot.end}</strong>
+                                        ${statusBadge}
+                                    </div>
+                                    <div>
+                                        ${actionButton}
+                                    </div>
+                                </div>
+                            `;
+                            
+                            slotsList.appendChild(slotItem);
+                        });
+                    }
+                } else {
+                    document.getElementById('slots-error').style.display = 'block';
+                    document.getElementById('slots-error').textContent = data.error || 'Error al cargar los horarios';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('slots-loading').style.display = 'none';
+                document.getElementById('slots-error').style.display = 'block';
+            });
+    }
+    
+    // Función para toggle individual de slots
+    window.toggleSlot = function(slotId, action) {
+        const formData = new FormData();
+        formData.append('slot_id', slotId);
+        formData.append('action', action);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+        
+        fetch("{% url 'toggle_slot_availability' %}", {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Recargar los slots del día
+                const currentDate = document.getElementById('slotsModal').dataset.currentDate;
+                loadDaySlots(currentDate);
+            } else {
+                alert('Error: ' + (data.error || 'No se pudo modificar el slot'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al modificar el slot');
+        });
+    }
+    
+    // Configurar todos los botones
+    setupDisableDayButtons();
+    setupEnableDayButtons();
+    setupViewSlotsButtons();
+    
+    // Enviar formulario de día no disponible
+    const timeoffForm = document.getElementById('timeoffForm');
+    if (timeoffForm) {
+        timeoffForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            console.log('Enviando formulario de bloqueo de día...');
+            
+            const formData = new FormData(this);
+            
+            fetch("{% url 'add_timeoff' %}", {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Día bloqueado correctamente');
+                    location.reload();
+                } else {
+                    alert('Error: ' + (data.error || 'No se pudo marcar el día como no disponible'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al bloquear el día');
+            });
+        });
+    }
+    
+    // Hacer las celdas del calendario clickeables
+    document.querySelectorAll('.day-cell').forEach(function(cell) {
+        cell.style.cursor = 'pointer';
+        cell.addEventListener('click', function(e) {
+            // Solo si no se hizo clic en un botón
+            if (!e.target.closest('button')) {
+                const date = this.dataset.date;
+                const isTimeoff = this.dataset.isTimeoff === 'true';
+                console.log('Clic en día:', date, 'TimeOff:', isTimeoff);
+                
+                // Buscar botones en esta celda
+                const disableBtn = this.querySelector('.disable-day');
+                const enableBtn = this.querySelector('.enable-day');
+                const viewBtn = this.querySelector('.view-slots');
+                
+                if (disableBtn) {
+                    disableBtn.click();
+                } else if (enableBtn) {
+                    enableBtn.click();
+                } else if (viewBtn) {
+                    viewBtn.click();
+                }
+            }
+        });
+    });
+    
+    // Botón para bloquear todo el día desde el modal
+    document.getElementById('block-all-day').addEventListener('click', function() {
+        const date = document.getElementById('slotsModal').dataset.currentDate;
+        if (confirm('¿Está seguro que desea bloquear todos los horarios libres de este día?')) {
+            const formData = new FormData();
+            formData.append('date', date);
+            formData.append('reason', 'Bloqueado desde gestión de disponibilidad');
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+            
+            fetch("{% url 'add_timeoff' %}", {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Día bloqueado correctamente');
+                    location.reload();
+                } else {
+                    alert('Error: ' + (data.error || 'No se pudo bloquear el día'));
+                }
+            });
+        }
+    });
+    
+    // Botón para habilitar todo el día desde el modal
+    document.getElementById('unblock-all-day').addEventListener('click', function() {
+        const date = document.getElementById('slotsModal').dataset.currentDate;
+        if (confirm('¿Está seguro que desea habilitar todos los horarios bloqueados de este día?')) {
+            const formData = new FormData();
+            formData.append('date', date);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+            
+            fetch("{% url 'remove_timeoff' %}", {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Día habilitado correctamente');
+                    location.reload();
+                } else {
+                    alert('Error: ' + (data.error || 'No se pudo habilitar el día'));
+                }
+            });
+        }
+    });
+});
+</script>
+{% endblock %}

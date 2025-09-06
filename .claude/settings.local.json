@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell:*)",
+      "Bash(.\\venv\\Scripts\\python.exe:*)",
+      "Bash(python manage.py runserver:*)",
+      "Bash(.venvScriptsactivate)",
+      "Bash(.\\venv\\Scripts\\python.exe manage.py runserver:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

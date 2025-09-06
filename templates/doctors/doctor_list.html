@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block title %}Lista de Médicos{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Médicos</h1>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="row">
+            {% for doctor in doctors %}
+            <div class="col-md-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="bi bi-person-badge"></i> Dr. {{ doctor.user.get_full_name }}
+                        </h5>
+                        <h6 class="card-subtitle mb-2 text-muted">{{ doctor.specialty.name }}</h6>
+                        <p class="card-text">
+                            <small><strong>Licencia:</strong> {{ doctor.license_number }}</small><br>
+                            <small><strong>Sedes:</strong> 
+                                {% for location in doctor.locations.all %}
+                                    {{ location.name }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                            </small>
+                        </p>
+                        {% if doctor.bio %}
+                        <p class="card-text">{{ doctor.bio|truncatewords:20 }}</p>
+                        {% endif %}
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="badge bg-{{ doctor.active|yesno:'success,danger' }}">
+                                {{ doctor.active|yesno:'Activo,Inactivo' }}
+                            </span>
+                            <a href="{% url 'doctor_detail' doctor.id %}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i> Ver detalles
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> No hay médicos registrados en el sistema.
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
