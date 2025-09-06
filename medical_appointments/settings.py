@@ -25,7 +25,10 @@ SECRET_KEY = 'django-insecure-&*th&8$2i&yzlu3@x)-8(3*1kxht42i6+t26jlxx1$++nas$jy
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+
+ALLOWED_HOSTS = ['*','corpofuturo.org','seguroslavictoria.co', "https://citasmedicas.corpofuturo.org", "citasmedicas.corpofuturo.org",'cuentasmedicas.seguroslavictoria.co','vacunacion.solucionesfinancierasglobal.com','cuentasmedicas.corpofuturo.org','https://cuentasmedicas.seguroslavictoria.co','https://vacunacion.corpofuturo.org']
+
+
 
 
 # Application definition
@@ -58,7 +61,30 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+CORS_ALLOWED_ORIGINS = [
+  "http://localhost:8081",    # RN Metro Bundler
+  "http://localhost:32867",     # Android emulator
+"http://localhost:8000",      # para el Admin si usas AJAX
+    "http://localhost:5000",      # Flutter Web (ajusta el puerto real)
+    "http://localhost:5173",
+"https://citasmedicas.corpofuturo.org",
+    "https://citasmedicas.solucionesfinancierasglobal.com",
+]
 
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:8081",    # RN Metro Bundler
+      "http://localhost:32867",     # Android emulator
+    "http://localhost:8000",      # para el Admin si usas AJAX
+        "http://localhost:5000",      # Flutter Web (ajusta el puerto real)
+        "http://localhost:5173",
+    "https://corpofuturo.org",
+    "https://cuentasmedicas.corpofuturo.org",
+"https://cuentasmedicas.seguroslavictoria.co",
+    "https://seguroslavictoria.co",
+    "https://citasmedicas.corpofuturo.org",
+    "http://127.0.0.1:8000",
+    "https://citasmedicas.solucionesfinancierasglobal.com",
+]
 ROOT_URLCONF = 'medical_appointments.urls'
 
 TEMPLATES = [
